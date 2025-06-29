@@ -14,6 +14,14 @@ async function sendMessage() {
     input.value = '';
     setLoading('sendButton', true);
     
+    // Create empty bot message container for streaming
+    const chatMessages = document.getElementById('chatMessages');
+    const botMessageDiv = document.createElement('div');
+    botMessageDiv.className = 'message bot-message';
+    botMessageDiv.textContent = ''; // Start empty
+    chatMessages.appendChild(botMessageDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
@@ -21,15 +29,28 @@ async function sendMessage() {
             body: JSON.stringify({ message })
         });
         
-        const result = await response.json();
-        
-        if (response.ok) {
-            addMessageToChat(result.response, 'bot');
-        } else {
-            addMessageToChat('Sorry, I encountered an error: ' + result.error, 'bot');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
+        // Handle streaming response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) break;
+            
+            const chunk = decoder.decode(value);
+            botMessageDiv.textContent += chunk;
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+        
     } catch (error) {
-        addMessageToChat('Sorry, I couldn\'t connect to the server.', 'bot');
+        console.error('Chat error:', error);
+        botMessageDiv.textContent = 'Sorry, I encountered an error. Please try again.';
+        botMessageDiv.classList.add('error-message');
     } finally {
         setLoading('sendButton', false);
         document.getElementById('sendButton').textContent = 'Send';
@@ -38,13 +59,15 @@ async function sendMessage() {
 
 // Add message to chat display
 function addMessageToChat(message, sender) {
-    const chatMessages = document.getElementById('chatMessages');
-    const messageDiv = document.createElement('div');
-    messageDiv.className = `message ${sender}-message`;
-    messageDiv.textContent = message;
-    
-    chatMessages.appendChild(messageDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
+    if (sender === 'user') {
+        const chatMessages = document.getElementById('chatMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = `message ${sender}-message`;
+        messageDiv.textContent = message;
+        
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 }
 
 // Handle Enter key in chat input

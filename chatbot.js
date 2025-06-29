@@ -127,7 +127,7 @@ app.post('/api/chat', async (req, res) => {
     const { message } = req.body;
     
     if (!process.env.GEMINI_API_KEY) {
-      throw new Error('GEMINI_API_KEY not found in environment variables');
+      throw new Error('GEMINI_API_KEY not found');
     }
     
     const systemPrompt = getSystemPrompt();
@@ -141,15 +141,35 @@ app.post('/api/chat', async (req, res) => {
     
     const fullPrompt = `${context}\n\nUser question: ${message}\n\nPlease provide a helpful response.`;
     
-    console.log('Calling Gemini API...'); 
-    const result = await model.generateContent(fullPrompt);
-    const response = result.response.text();
-    console.log('Gemini response received'); 
+    // Set headers for streaming
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
     
-    res.json({ response });
+    console.log('Starting streaming response...');
+    
+    // Generate streaming content
+    const result = await model.generateContentStream(fullPrompt);
+    
+    for await (const chunk of result.stream) {
+      const chunkText = chunk.text();
+      if (chunkText) {
+        res.write(chunkText);
+      }
+    }
+    
+    res.end();
+    console.log('Streaming response completed');
+    
   } catch (error) {
-    console.error('Detailed chat error:', error); // detailed error
-    res.status(500).json({ error: `Failed to get response: ${error.message}` });
+    console.error('Streaming chat error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ error: `Failed to get response: ${error.message}` });
+    } else {
+      res.write(`\n\n[Error: ${error.message}]`);
+      res.end();
+    }
   }
 });
 
