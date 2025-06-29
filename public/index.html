@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Business LLM Chatbot</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <h2>Admin Panel</h2>
+            
+            <div class="section">
+                <h3>System Prompt</h3>
+                <textarea id="systemPrompt" placeholder="Enter your system prompt..."></textarea>
+                <button id="savePromptBtn" onclick="saveSystemPrompt()">Save Prompt</button>
+                <div id="promptStatus"></div>
+            </div>
+
+            <div class="section">
+                <h3>Upload Document</h3>
+                <input type="file" id="fileInput" accept=".pdf,.txt" onchange="showSelectedFile()">
+                <div id="selectedFile" class="selected-file"></div>
+                <button id="uploadBtn" onclick="uploadDocument()">Upload</button>
+                <div id="uploadStatus"></div>
+            </div>
+
+            <div class="section">
+                <h3>Documents</h3>
+                <div id="documentList">No documents uploaded yet</div>
+            </div>
+        </div>
+
+        <div class="chat-area">
+            <div class="chat-header">
+                <h1>Business AI Assistant</h1>
+            </div>
+            
+            <div id="chatMessages" class="chat-messages">
+                <div class="bot-message">
+                    Hello! I'm your business AI assistant. Upload some documents and ask me questions!
+                </div>
+            </div>
+            
+            <div class="chat-input">
+                <input type="text" id="messageInput" placeholder="Ask a question..." maxlength="500">
+                <button id="sendButton" onclick="sendMessage()">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/admin.js"></script>
+    <script src="js/chat.js"></script>
+    <script src="js/script.js"></script>
+</body>
+</html>
