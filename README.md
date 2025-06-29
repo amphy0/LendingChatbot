@@ -74,6 +74,7 @@ A Node.js web application that creates a business chatbot with document knowledg
 business-llm-chatbot/
 ├── chatbot.js              # Main server file
 ├── package.json            # Dependencies and scripts
+├── package-lock.json            # Dependencies and scripts
 ├── .env                    # Environment variables (not in git)
 ├── .gitignore             # Git ignore rules
 ├── README.md              # This file
@@ -84,11 +85,12 @@ business-llm-chatbot/
 └── public/                # Frontend files
     ├── index.html         # Main HTML file
     ├── style.css          # Styling
-    ├── script.js          # Main frontend script
     └── js/                # Modular JavaScript files
         ├── admin.js       # Admin panel functionality
         ├── chat.js        # Chat functionality
-        └── utils.js       # Shared utilities
+        ├── utils.js       # Shared utilities
+        └── script.js      # Main frontend script
+
 ```
 
 ## Next Steps & Improvements
