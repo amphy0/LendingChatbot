@@ -150,6 +150,53 @@ class DocumentDB {
       );
     });
   }
+
+    async processSystemDocuments() {
+        return new Promise((resolve, reject) => {
+            // Find system documents that don't have chunks yet
+            this.db.all(`
+            SELECT d.id, d.content 
+            FROM documents d 
+            LEFT JOIN document_chunks dc ON d.id = dc.document_id 
+            WHERE d.is_system_document = TRUE AND dc.id IS NULL
+            `, async (err, docs) => {
+            if (err) {
+                reject(err);
+                return;
+            }
+            
+            if (docs.length === 0) {
+                console.log('All system documents already have chunks');
+                resolve();
+                return;
+            }
+            
+            console.log(`Processing ${docs.length} system documents for chunking...`);
+            
+            for (const doc of docs) {
+                const chunks = this.chunkText(doc.content);
+                
+                for (let i = 0; i < chunks.length; i++) {
+                await new Promise((resolveChunk, rejectChunk) => {
+                    this.db.run(
+                    'INSERT INTO document_chunks (document_id, chunk_index, content, word_count) VALUES (?, ?, ?, ?)',
+                    [doc.id, i, chunks[i].content, chunks[i].word_count],
+                    (chunkErr) => {
+                        if (chunkErr) rejectChunk(chunkErr);
+                        else resolveChunk();
+                    }
+                    );
+                });
+                }
+                
+                console.log(`Chunked system document ID: ${doc.id}`);
+            }
+            
+            console.log('All system documents processed');
+            resolve();
+            });
+        });
+    }
 }
 
 module.exports = DocumentDB;
