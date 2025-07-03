@@ -110,11 +110,11 @@ business-llm-chatbot/
 - **Improve Frontend** - Better UI/UX
 
 ### Medium Priority  
-- **Format Responses** - Markdown support, better text output formatting. Potentially images?
+- ~~**Format Responses** - Markdown support, better text output formatting. Potentially images?~~
 
 ### Low Priority
-- **Database Integration** - Replace file storage with proper database for documents
-- **Optimize Token Usage** - Smart document chunking to reduce API costs (currently sends all documents every time)
+- ~~**Database Integration** - Replace file storage with proper database for documents~~
+- ~~**Optimize Token Usage** - Smart document chunking to reduce API costs (currently sends all documents every time)~~
 - **Authentication System** - User login, admin roles, session management
 
 ## Troubleshooting
