@@ -208,6 +208,110 @@ app.delete('/api/documents/:id', async (req, res) => {
   }
 });
 
+// Add this route after your other routes
+app.get('/admin', (req, res) => {
+  res.send(`
+    <html>
+    <head><title>Admin - Business Documents</title></head>
+    <body style="font-family: Arial; padding: 20px;">
+      <h1>Business Document Admin</h1>
+      
+      <h2>Upload Business Document (Hidden from Users)</h2>
+      <form action="/admin/upload" method="post" enctype="multipart/form-data">
+        <input type="file" name="document" accept=".pdf,.txt" required><br><br>
+        <label>Document Name: <input type="text" name="name" placeholder="e.g., Company Policies" required></label><br><br>
+        <button type="submit">Upload as Business Document</button>
+      </form>
+      
+      <h2>Current Business Documents</h2>
+      <div id="businessDocs">Loading...</div>
+      
+      <script>
+        fetch('/admin/documents')
+          .then(r => r.json())
+          .then(docs => {
+            document.getElementById('businessDocs').innerHTML = docs.map(doc => 
+              \`<div style="border: 1px solid #ccc; padding: 10px; margin: 10px 0;">
+                <strong>\${doc.original_name}</strong> (ID: \${doc.id})<br>
+                <small>Uploaded: \${doc.upload_date}</small><br>
+                <button onclick="deleteDoc(\${doc.id})">Delete</button>
+              </div>\`
+            ).join('');
+          });
+          
+        function deleteDoc(id) {
+          if(confirm('Delete this business document?')) {
+            fetch('/admin/documents/' + id, {method: 'DELETE'})
+              .then(() => location.reload());
+          }
+        }
+      </script>
+    </body>
+    </html>
+  `);
+});
+
+// Upload business document
+app.post('/admin/upload', upload.single('document'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).send('No file uploaded');
+    }
+
+    let content = '';
+    
+    if (req.file.mimetype === 'application/pdf') {
+      const dataBuffer = fs.readFileSync(req.file.path);
+      const pdfData = await pdfParse(dataBuffer);
+      content = pdfData.text;
+    } else if (req.file.mimetype === 'text/plain') {
+      content = fs.readFileSync(req.file.path, 'utf8');
+    } else {
+      return res.status(400).send('Only PDF and TXT files supported');
+    }
+
+    const documentName = req.body.name || req.file.originalname;
+    const filename = `business-${Date.now()}-${req.file.originalname}`;
+    
+    // Add as system document (hidden from users)
+    await docDB.addDocument(filename, documentName, content, true);
+    
+    // Clean up
+    fs.unlinkSync(req.file.path);
+    
+    res.send(`
+      <h1>Success!</h1>
+      <p>Business document "${documentName}" uploaded successfully.</p>
+      <a href="/admin">← Back to Admin</a>
+    `);
+  } catch (error) {
+    console.error('Admin upload error:', error);
+    res.status(500).send('Upload failed: ' + error.message);
+  }
+});
+
+// Get business documents
+app.get('/admin/documents', async (req, res) => {
+  try {
+    const result = await docDB.pool.query(
+      'SELECT id, original_name, upload_date FROM documents WHERE is_system_document = TRUE ORDER BY upload_date DESC'
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Delete business document
+app.delete('/admin/documents/:id', async (req, res) => {
+  try {
+    await docDB.pool.query('DELETE FROM documents WHERE id = $1 AND is_system_document = TRUE', [req.params.id]);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
