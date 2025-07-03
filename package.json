@@ -4,7 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node chatbot.js",
+    "dev": "nodemon chatbot.js"
   },
   "repository": {
     "type": "git",
@@ -22,6 +24,8 @@
     "dotenv": "^17.0.0",
     "express": "^5.1.0",
     "multer": "^2.0.1",
-    "pdf-parse": "^1.1.1"
+    "pdf-parse": "^1.1.1",
+    "sqlite3": "^5.1.7"
   }
+  
 }

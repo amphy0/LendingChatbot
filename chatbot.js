@@ -6,8 +6,14 @@ const fs = require("fs");
 const path = require("path");
 require("dotenv").config();
 
+const { initDatabase } = require('./database/init');
+const DocumentDB = require('./database/models');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+initDatabase();
+const docDB = new DocumentDB();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({model: 'gemini-2.0-flash'});
@@ -18,68 +24,67 @@ app.use(express.static('public'));
 const upload = multer({ dest: 'uploads/' });
 
 // Helper functions
-function getSystemPrompt() {
-  const promptPath = path.join(__dirname, 'data', 'system-prompt.txt');
-  if (fs.existsSync(promptPath)) {
-    return fs.readFileSync(promptPath, 'utf8');
+async function getSystemPrompt() {
+  try {
+    return await docDB.getSystemPrompt();
+  } catch (error) {
+    console.error('Error getting system prompt:', error);
+    return 'You are a helpful business assistant with access to company documents. Always format your responses using proper markdown for better readability.';
   }
-  return 'You are a helpful business assistant.';
 }
 
-function saveSystemPrompt(prompt) {
-  const promptPath = path.join(__dirname, 'data', 'system-prompt.txt');
-  const dataDir = path.join(__dirname, 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
+async function saveSystemPrompt(prompt) {
+  try {
+    await docDB.saveSystemPrompt(prompt);
+    return true;
+  } catch (error) {
+    console.error('Error saving system prompt:', error);
+    return false;
   }
-  fs.writeFileSync(promptPath, prompt);
 }
 
-function getAllDocuments() {
-  const docsDir = path.join(__dirname, 'data', 'documents');
-  if (!fs.existsSync(docsDir)) {
-    fs.mkdirSync(docsDir, { recursive: true });
+async function getRelevantDocuments(query) {
+  try {
+    return await docDB.findRelevantChunks(query, 5);
+  } catch (error) {
+    console.error('Error finding relevant documents:', error);
     return [];
   }
-  
-  const files = fs.readdirSync(docsDir);
-  return files.map(file => {
-    const filePath = path.join(docsDir, file);
-    const content = fs.readFileSync(filePath, 'utf8');
-    const stats = fs.statSync(filePath);
-    return { 
-      name: file.replace(/^\d+-/, '').replace('.txt', ''),
-      filename: file,
-      content,
-      size: `${Math.round(stats.size / 1024)}KB`
-    };
-  });
 }
 
 // API Routes
-app.get('/api/system-prompt', (req, res) => {
+app.get('/api/system-prompt', async (req, res) => {
   try {
-    const prompt = getSystemPrompt();
+    const prompt = await getSystemPrompt();
     res.json({ prompt });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/system-prompt', (req, res) => {
+app.post('/api/system-prompt', async (req, res) => {
   try {
     const { prompt } = req.body;
-    saveSystemPrompt(prompt);
-    res.json({ success: true });
+    const success = await saveSystemPrompt(prompt);
+    if (success) {
+      res.json({ success: true });
+    } else {
+      res.status(500).json({ error: 'Failed to save prompt' });
+    }
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/documents', (req, res) => {
+app.get('/api/documents', async (req, res) => {
   try {
-    const documents = getAllDocuments();
-    res.json(documents);
+    const documents = await docDB.getUserDocuments();
+    res.json(documents.map(doc => ({
+      id: doc.id,
+      name: doc.original_name,
+      size: `${Math.round(doc.file_size / 1024)}KB`,
+      upload_date: doc.upload_date
+    })));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -91,34 +96,48 @@ app.post('/api/upload', upload.single('document'), async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    console.log('Processing file:', req.file.originalname, 'Type:', req.file.mimetype);
+
     let content = '';
     
     if (req.file.mimetype === 'application/pdf') {
-      const dataBuffer = fs.readFileSync(req.file.path);
-      const pdfData = await pdfParse(dataBuffer);
-      content = pdfData.text;
+      console.log('Processing PDF...');
+      try {
+        const dataBuffer = fs.readFileSync(req.file.path);
+        const pdfData = await pdfParse(dataBuffer);
+        content = pdfData.text;
+        console.log('PDF processed, content length:', content.length);
+      } catch (pdfError) {
+        console.error('PDF parsing failed:', pdfError);
+        return res.status(400).json({ error: 'Failed to parse PDF. Please try converting to text file first.' });
+      }
     } else if (req.file.mimetype === 'text/plain') {
+      console.log('Processing text file...');
       content = fs.readFileSync(req.file.path, 'utf8');
     } else {
+      console.log('Unsupported file type:', req.file.mimetype);
       return res.status(400).json({ error: 'Only PDF and TXT files are supported' });
     }
 
-    const filename = `${Date.now()}-${req.file.originalname}.txt`;
-    const savePath = path.join(__dirname, 'data', 'documents', filename);
-    
-    // Make sure directory exists
-    const docsDir = path.join(__dirname, 'data', 'documents');
-    if (!fs.existsSync(docsDir)) {
-      fs.mkdirSync(docsDir, { recursive: true });
+    if (!content || content.trim().length === 0) {
+      return res.status(400).json({ error: 'No text content could be extracted from the file' });
     }
+
+    // Save to database instead of file system
+    const filename = `${Date.now()}-${req.file.originalname}`;
+    const documentId = await docDB.addDocument(filename, req.file.originalname, content, false);
     
-    fs.writeFileSync(savePath, content);
+    // Clean up temp file
     fs.unlinkSync(req.file.path);
     
-    res.json({ success: true, filename });
+    console.log('Document saved to database with ID:', documentId);
+    res.json({ success: true, id: documentId });
   } catch (error) {
     console.error('Upload error:', error);
-    res.status(500).json({ error: error.message });
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+    res.status(500).json({ error: `Upload failed: ${error.message}` });
   }
 });
 
@@ -130,13 +149,15 @@ app.post('/api/chat', async (req, res) => {
       throw new Error('GEMINI_API_KEY not found');
     }
     
-    const systemPrompt = getSystemPrompt();
-    const documents = getAllDocuments();
+    const systemPrompt = await getSystemPrompt();
+    const relevantChunks = await getRelevantDocuments(message);
     
     let context = systemPrompt;
-    if (documents.length > 0) {
-      context += '\n\nYou have access to these documents:\n\n' + 
-        documents.map(doc => `Document: ${doc.name}\nContent: ${doc.content}`).join('\n\n---\n\n');
+    if (relevantChunks.length > 0) {
+      context += '\n\nRelevant information from documents:\n\n' + 
+        relevantChunks.map(chunk => 
+          `From ${chunk.is_system_document ? 'Company Knowledge' : chunk.original_name}:\n${chunk.content}`
+        ).join('\n\n---\n\n');
     }
     
     const fullPrompt = `${context}\n\nUser question: ${message}\n\nPlease provide a helpful response.`;
@@ -147,9 +168,8 @@ app.post('/api/chat', async (req, res) => {
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
     
-    console.log('Starting streaming response...');
+    console.log(`Using ${relevantChunks.length} relevant document chunks for response`);
     
-    // Generate streaming content
     const result = await model.generateContentStream(fullPrompt);
     
     for await (const chunk of result.stream) {
@@ -160,7 +180,6 @@ app.post('/api/chat', async (req, res) => {
     }
     
     res.end();
-    console.log('Streaming response completed');
     
   } catch (error) {
     console.error('Streaming chat error:', error);
@@ -173,16 +192,15 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
-app.delete('/api/documents/:filename', (req, res) => {
+app.delete('/api/documents/:id', async (req, res) => {
   try {
-    const { filename } = req.params;
-    const filePath = path.join(__dirname, 'data', 'documents', filename);
+    const { id } = req.params;
+    const success = await docDB.deleteDocument(parseInt(id));
     
-    if (fs.existsSync(filePath)) {
-      fs.unlinkSync(filePath);
+    if (success) {
       res.json({ success: true });
     } else {
-      res.status(404).json({ error: 'Document not found' });
+      res.status(404).json({ error: 'Document not found or cannot delete system document' });
     }
   } catch (error) {
     console.error('Delete error:', error);

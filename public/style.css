@@ -221,6 +221,63 @@ input[type="file"] {
     color: #c62828 !important;
 }
 
+/* Markdown styling for bot messages */
+.bot-message h1, .bot-message h2, .bot-message h3 {
+    margin: 16px 0 8px 0;
+    color: #2c3e50;
+}
+
+.bot-message h2 {
+    font-size: 1.2em;
+    border-bottom: 1px solid #bdc3c7;
+    padding-bottom: 4px;
+}
+
+.bot-message p {
+    margin: 8px 0;
+    line-height: 1.5;
+}
+
+.bot-message ul, .bot-message ol {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.bot-message li {
+    margin: 4px 0;
+}
+
+.bot-message code {
+    background: #f1f2f6;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9em;
+}
+
+.bot-message blockquote {
+    border-left: 4px solid #3498db;
+    margin: 12px 0;
+    padding-left: 16px;
+    background: #f8f9fa;
+    font-style: italic;
+}
+
+.bot-message strong {
+    font-weight: bold;
+    color: #2c3e50;
+}
+
+.bot-message em {
+    font-style: italic;
+    color: #555;
+}
+
+.error-text {
+    color: #e74c3c !important;
+    font-style: italic;
+}
+
 @media (max-width: 768px) {
     .container {
         flex-direction: column;

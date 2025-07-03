@@ -7,7 +7,12 @@ A Node.js web application that creates a business chatbot with document knowledg
 - Document upload and management (PDF and TXT files)
 - AI chat with document knowledge using Google Gemini
 - Configurable system prompts
+- Real-time streaming chat responses
 - Document deletion
+- Smart document chunking and relevance matching
+- Markdown formatting in responses
+- SQLite database for scalable document storage
+
 
 ## Setup Instructions
 
@@ -41,6 +46,11 @@ A Node.js web application that creates a business chatbot with document knowledg
    ```bash
    node chatbot.js
    ```
+   Or for auto-restart during development:
+   ```bash
+   npm install -g nodemon
+   nodemon chatbot.js   
+   ```
 
 5. **Open your browser**
    
@@ -72,15 +82,16 @@ A Node.js web application that creates a business chatbot with document knowledg
 
 ```
 business-llm-chatbot/
-├── chatbot.js              # Main server file
-├── package.json            # Dependencies and scripts
-├── package-lock.json            # Dependencies and scripts
-├── .env                    # Environment variables (not in git)
+├── chatbot.js             # Main server file
+├── package.json           # Dependencies and scripts
+├── package-lock.json      # Dependencies and scripts
+├── .env                   # Environment variables (not in git)
 ├── .gitignore             # Git ignore rules
 ├── README.md              # This file
-├── data/                  # Auto-created data storage
-│   ├── system-prompt.txt  # Saved system prompt
-│   └── documents/         # Uploaded document content
+├── database/              # Database setup and models
+│   ├── init.js            # Database initialization
+│   ├── models.js          # Database operations
+│   └── chatbot.db         # SQLite database (auto-created)
 ├── uploads/               # Temporary file upload storage
 └── public/                # Frontend files
     ├── index.html         # Main HTML file

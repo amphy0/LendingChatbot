@@ -18,9 +18,11 @@ async function sendMessage() {
     const chatMessages = document.getElementById('chatMessages');
     const botMessageDiv = document.createElement('div');
     botMessageDiv.className = 'message bot-message';
-    botMessageDiv.textContent = ''; // Start empty
+    botMessageDiv.innerHTML = ''; // Use innerHTML for markdown
     chatMessages.appendChild(botMessageDiv);
     chatMessages.scrollTop = chatMessages.scrollHeight;
+    
+    let fullResponse = ''; // Store the complete response
     
     try {
         const response = await fetch('/api/chat', {
@@ -43,20 +45,21 @@ async function sendMessage() {
             if (done) break;
             
             const chunk = decoder.decode(value);
-            botMessageDiv.textContent += chunk;
+            fullResponse += chunk;
+            
+            // Convert markdown to HTML and update display
+            botMessageDiv.innerHTML = marked.parse(fullResponse);
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
         
     } catch (error) {
         console.error('Chat error:', error);
-        botMessageDiv.textContent = 'Sorry, I encountered an error. Please try again.';
-        botMessageDiv.classList.add('error-message');
+        botMessageDiv.innerHTML = '<p class="error-text">Sorry, I encountered an error. Please try again.</p>';
     } finally {
         setLoading('sendButton', false);
         document.getElementById('sendButton').textContent = 'Send';
     }
 }
-
 // Add message to chat display
 function addMessageToChat(message, sender) {
     if (sender === 'user') {

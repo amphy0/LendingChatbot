@@ -122,18 +122,18 @@ function displayDocuments(documents) {
                 <span class="doc-name">${doc.name}</span>
                 <small class="doc-size">(${doc.size || 'Unknown size'})</small>
             </div>
-            <button class="delete-btn" onclick="deleteDocument('${doc.filename}')">Delete</button>
+            <button class="delete-btn" onclick="deleteDocument(${doc.id})">Delete</button>
         </div>
     `).join('');
 }
 
-async function deleteDocument(filename) {
+async function deleteDocument(documentId) {
     if (!confirm('Are you sure you want to delete this document?')) {
         return;
     }
     
     try {
-        const response = await fetch(`/api/documents/${encodeURIComponent(filename)}`, {
+        const response = await fetch(`/api/documents/${documentId}`, {
             method: 'DELETE'
         });
         
